@@ -1,0 +1,60 @@
+# Large model checkpoints
+*.pth
+*.pt
+*.pkl
+ckpts/
+
+# Large data analysis files
+tools/analysis_tools/data_analysis/*.csv
+tools/analysis_tools/data_analysis/*.json
+
+# Test results
+test/*/Mon_*
+test/*/results_*.json
+
+# Scenario outputs (keep structure but ignore large files)
+scenario_*_output/weights_*.npy
+scenario_*_output/detections_*.npy
+scenario_*_output/input_images/
+scenario_*_output/visualizations/
+visualizations/
+
+RoScenes/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.so
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Environment
+.env
+.venv
+env/
+venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.temp
+nohup.out
+*.log
+
+# Large data files
+data_dumping/*.pkl
+data_dumping/*.csv
+data_dumping/*.log
