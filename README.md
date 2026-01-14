@@ -203,6 +203,7 @@ The main MIC-BEV configuration is located at:
 # Acknowledgement
 
 Many thanks to these excellent open source projects:
+- [bevformer](https://github.com/fundamentalvision/BEVFormer)
 - [dd3d](https://github.com/TRI-ML/dd3d) 
 - [detr3d](https://github.com/WangYueFt/detr3d) 
 - [mmdet3d](https://github.com/open-mmlab/mmdetection3d)
@@ -235,7 +236,3 @@ The following uses are not permitted under this license:
 - Contracted work that generates corporate or institutional revenue
 - Redistribution for commercial products or services
 - Please refer to the LICENSE file for full terms and for information on potential commercial licensing opportunities.
-
-## Contributors
-MIC-BEV is mainly supported by the [UCLA Mobility Lab](https://mobility-lab.seas.ucla.edu/). <br>
-
