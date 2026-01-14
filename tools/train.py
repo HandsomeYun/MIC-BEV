@@ -129,7 +129,7 @@ def main():
                 print(_module_path)
                 plg_lib = importlib.import_module(_module_path)
 
-            from projects.mmdet3d_plugin.bevformer.apis.train import custom_train_model
+            from projects.mmdet3d_plugin.micbev.apis.train import custom_train_model
     # set cudnn_benchmark
     if cfg.get('cudnn_benchmark', False):
         torch.backends.cudnn.benchmark = True

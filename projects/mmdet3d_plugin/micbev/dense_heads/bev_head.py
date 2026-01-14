@@ -19,7 +19,7 @@ from projects.mmdet3d_plugin.models.utils.bricks import run_time
 import numpy as np
 import mmcv
 import cv2 as cv
-from projects.mmdet3d_plugin.bevformer.modules import PerceptionTransformerBEVEncoder
+from projects.mmdet3d_plugin.micbev.modules import PerceptionTransformerBEVEncoder
 from mmdet.models.utils import build_transformer
 from mmdet3d.models.builder import build_head
 from mmdet3d.models.dense_heads.free_anchor3d_head import FreeAnchor3DHead

@@ -1,12 +1,3 @@
-# BEvFormer-tiny consumes at lease 6700M GPU memory
-# compared to bevformer_base, bevformer_tiny has
-# smaller backbone: R101-DCN -> R50
-# smaller BEV: 200*200 -> 50*50
-# less encoder layers: 6 -> 3
-# smaller input size: 1600*900 -> 800*450
-# multi-scale feautres -> single scale features (C5)
-
-
 _base_ = [
     '../datasets/custom_nus-3d.py',
     '../_base_/default_runtime.py'
@@ -15,13 +6,11 @@ _base_ = [
 plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
-# If point cloud range is changed, the models should also change their point
-# cloud range accordingly
 point_cloud_range = [-400.0, -100.0, 0.0, 400.0, 100.0, 6.0]
 post_center_range  = [-410.0, -110.0, -0.0, 410.0, 110.0, 6.0]
 voxel_size         = [0.2, 0.2, 6]
 bev_stride         = 4
-grid_size          = [4000, 1000, 1]   #  (100–(–100))/0.32 = 625; (800–(–20))/0.32 = 2562
+grid_size          = [4000, 1000, 1]
 bev_w_             = 1000
 bev_h_             = 250
 

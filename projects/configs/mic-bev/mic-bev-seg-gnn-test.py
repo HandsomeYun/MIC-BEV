@@ -30,10 +30,10 @@ file_client_args = dict(backend='disk')
 dataset_type = 'M2IDataset'
 
 # # Set dataset roots before running
-data_root = '/path/to/M2I_split_dataset'
-pkl_root = '/path/to/M2I_pkl'
+data_root = '/data4/yun/M2I_dataset/M2I_split_dataset'
+pkl_root = '/data4/yun/M2I_dataset/M2I_pkl/'
 # for absolute path remapping. If you move the dataset to a different location, you need to change this.
-path_prefix_replace = [('/oldpathpredix/', '/newpathpredix/')] 
+path_prefix_replace = [('/data3/', '/data4/')] 
 
 ann_file_train=pkl_root + "/v2xset_infos_temporal_train.pkl"
 ann_file_val=pkl_root + "/v2xset_infos_temporal_val.pkl"

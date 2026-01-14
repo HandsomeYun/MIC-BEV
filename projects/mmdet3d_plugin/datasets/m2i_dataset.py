@@ -159,7 +159,7 @@ class M2IDataset(NuScenesDataset):
                 metas_map[i]['can_bus'][-1] -= prev_angle
                 prev_pos = copy.deepcopy(tmp_pos)
                 prev_angle = copy.deepcopy(tmp_angle)
-        # 🟩 Add current epoch from dataset object
+        # Add current epoch from dataset object
         for i in metas_map:
             metas_map[i]['epoch'] = getattr(self, 'epoch', 0)
         queue[-1]['img'] = DC(torch.stack(imgs_list), cpu_only=False, stack=True)
