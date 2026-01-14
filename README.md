@@ -135,7 +135,7 @@ pip install pillow==9.5.0
 After completing the installation above, you can:
 
 - Prepare your dataset following the MMDetection3D guidelines
-- Use the MIC-BEV configuration files in `projects/configs/bevformer/`
+- Use the MIC-BEV configuration files in `projects/configs/mic-bev/`
 - Run training and evaluation using the provided tools
 
 ### Prepare Dataset
@@ -198,7 +198,7 @@ To use the RoScenes dataset, follow the official RoScenes repository [https://gi
 
 The main MIC-BEV configuration is located at:
 - For M2I: `projects/configs/mic-bev/mic-bev-seg-gnn.py`
-- For Roscenes: `projects/configs/bevformer/mic-bev-roscenes-fp16.py`
+- For Roscenes: `projects/configs/mic-bev/mic-bev-roscenes-fp16.py`
 
 # Acknowledgement
 
