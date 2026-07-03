@@ -32,7 +32,7 @@ DATASET_NAME_TO_VERSION = {
     "nusc_test": "v1.0-test",
     "nusc_mini_train": "v1.0-mini",
     "nusc_mini_val": "v1.0-mini",
-    "mic_val": "/data4",
+    "mic_val": "/path/to/M2I/",
 }
 
 CAMERA_NAMES = ('CAM_FRONT_LEFT', 'CAM_FRONT', 'CAM_FRONT_RIGHT', 'CAM_BACK_LEFT', 'CAM_BACK', 'CAM_BACK_RIGHT')

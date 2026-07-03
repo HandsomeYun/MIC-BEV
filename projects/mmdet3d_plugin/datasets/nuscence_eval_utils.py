@@ -359,13 +359,14 @@ class DetectionMetrics:
         Compute the nuScenes detection score (NDS, weighted sum of the individual scores).
         :return: The NDS.
         """
-        # Summarize.
-        total = float(self.cfg['mean_ap_weight'] * self.mean_ap + np.sum(list(self.tp_scores.values())))
-
-        # Normalize.
-        total = total / float(self.cfg['mean_ap_weight'] + len(self.tp_scores.keys()))
-
-        return total
+        tp_errors = self.tp_errors
+        return float(
+            (3 * self.mean_ap
+             + 3
+             - tp_errors['trans_err']
+             - tp_errors['scale_err']
+             - tp_errors['orient_err']) / 6
+        )
     
 
     def serialize(self):

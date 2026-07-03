@@ -25,6 +25,7 @@ def build_dataloader(dataset,
                      seed=None,
                      shuffler_sampler=None,
                      nonshuffler_sampler=None,
+                     pin_memory=False,
                      **kwargs):
     """Build PyTorch DataLoader.
     In distributed training, each GPU/process has a dataloader.
@@ -86,7 +87,7 @@ def build_dataloader(dataset,
         sampler=sampler,
         num_workers=num_workers,
         collate_fn=partial(collate, samples_per_gpu=samples_per_gpu),
-        pin_memory=False,
+        pin_memory=pin_memory,
         worker_init_fn=init_fn,
         persistent_workers=(num_workers > 0),
         **kwargs)

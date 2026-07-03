@@ -7,7 +7,7 @@ from pyquaternion import Quaternion
 from mmcv import Config
 
 # 1) Make sure your plugin dir is on sys.path
-PLUGIN_DIR = '/home/yun/MIC-BEV_Official/projects/mmdet3d_plugin'
+PLUGIN_DIR = '/path/to/M2I/M2I_projects/mmdet3d_plugin'
 if PLUGIN_DIR not in sys.path:
     sys.path.insert(0, PLUGIN_DIR)
 
@@ -16,8 +16,8 @@ from projects.mmdet3d_plugin.datasets.pipelines.bev_obj_label import GetBEVObjLa
 
 # --- Settings ---
 target_token = 'town04_intersection1_3cam_t_c_day_s71_-125_000034'
-info_path    = '/home/yun/MIC-BEV_Official/data/clear_day/v2xset_infos_temporal_test.pkl'
-cfg_path     = '/home/yun/MIC-BEV_Official/projects/configs/bevformer/mic-bev-seg-gnn.py'
+info_path    = '/path/to/M2I/M2I_pkl/v2xset_infos_temporal_test.pkl'
+cfg_path     = '/path/to/M2I/M2I_projects/configs/bevformer/mic-bev-seg-gnn.py'
 
 # Your four object classes
 class_names = ['car','bicycle','truck','pedestrian']

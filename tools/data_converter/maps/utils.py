@@ -9,7 +9,7 @@ import math
 
 # Prepare the input file.
 # XODR_FILE = "/home/zzl/zhaoliang/zhz03_github/Multi-Mod_Sensor_Config_Lib/sensor_configurator/utils/Town10HD_Opt.xodr"
-XODR_FILE = "/home/handsomeyun/Downloads/Town10HD_Opt.xodr"
+XODR_FILE = "/path/to/M2I/M2I_map/Town10HD_Opt.xodr"
 # XODR_FILE = "./s_metrics/maps/example_data/xodr/Town06.xodr"
 # XODR_FILE = "./s_metrics/maps/example_data/xodr/Town07.xodr"
 # XODR_FILE = "./s_metrics/maps/example_data/xodr/Town05.xodr"

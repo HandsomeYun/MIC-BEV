@@ -1381,7 +1381,7 @@ def process_one_file(file,
     cx, cy = center_pose
 
     # prepare output folder
-    out_dir = os.path.join('/home/handsomeyun/BEVFormer/data/map', town_name, str(int(cx)) + '_' + str(int(cy)))
+    out_dir = os.path.join('/path/to/M2I/M2I_map', town_name, str(int(cx)) + '_' + str(int(cy)))
     os.makedirs(out_dir, exist_ok=True)
 
     print("new_save_path:", out_dir)
@@ -1473,8 +1473,8 @@ def main():
 
 def main2():
     # # This main2 is just for testing
-    # total_area_file = "/home/handsomeyun/BEVFormer/data/map/Town10HD_Opt/total_areas.pkl"
-    # crosswalk_file = "/home/handsomeyun/BEVFormer/data/map/Town10HD_Opt/crosswalks.pkl"
+    # total_area_file = "/path/to/M2I/M2I_map/Town10HD_Opt/total_areas.pkl"
+    # crosswalk_file = "/path/to/M2I/M2I_map/Town10HD_Opt/crosswalks.pkl"
     # center_pose = [-62.349998474121094, 20.189998626708984] # x=-46.734985, y=21.328648
     # range_x = 51.2
     # range_y = 51.2

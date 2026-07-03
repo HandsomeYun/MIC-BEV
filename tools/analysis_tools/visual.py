@@ -19,7 +19,6 @@ from nuscenes.utils.geometry_utils import view_points, box_in_image, BoxVisibili
 from nuscenes.eval.common.data_classes import EvalBoxes, EvalBox
 from nuscenes.eval.detection.data_classes import DetectionBox
 from nuscenes.eval.detection.utils import category_to_detection_name
-from copy import deepcopy
 import sys
 import json
 from matplotlib.colors import ListedColormap
@@ -545,6 +544,7 @@ def get_color(category_name: str):
             return nusc.colormap[key]
     return [0, 0, 0]
 
+
 def render_sample_data(with_map, sample_token: str, pred_data=None, out_path: str = None, conf_thresh: float = 0.2):
     try:
         sample = nusc.get('sample', sample_token)
@@ -628,7 +628,7 @@ def render_sample_data(with_map, sample_token: str, pred_data=None, out_path: st
         plt.close(fig)
 
 if __name__ == '__main__':
-    nusc = NuScenes(version='/data3/yun/M2I_dataset/M2I_json/v1.0-trainval', dataroot='/data3/yun/M2I_dataset/', verbose=True)
+    nusc = NuScenes(version='M2I_json/v1.0-trainval', dataroot='/path/to/M2I/', verbose=True)
     # render_annotation('7603b030b42a4b1caa8c443ccc1a7d52')
     #bevformer_results = mmcv.load('test/bevformer_base_inf_higherlr/Tue_May_13_14_03_22_2025/pts_bbox/results_nusc.json')
 
@@ -650,7 +650,7 @@ if __name__ == '__main__':
 
     if with_map == 'True':
         #——— load map.json once ———
-        MAP_JSON = "/data4/multi-cam-json-weather/v1.0-trainval/map.json"   # adjust path
+        MAP_JSON = "/path/to/M2I/M2I_json/v1.0-trainval/map.json"   # adjust path
         with open(MAP_JSON, 'r') as f:
             _map_entries = json.load(f)
         # build scene_token → filename lookup

@@ -71,7 +71,7 @@ def generate_bev_map(
 
     # Save
     if not save_dir:
-        save_dir = os.path.join("/home/handsomeyun/BEVFormer/data/map/bev_semantic_output", town_name, str(int(cx)) + '_' + str(int(cy)))
+        save_dir = os.path.join("/path/to/M2I/M2I_map/bev_semantic_output", town_name, str(int(cx)) + '_' + str(int(cy)))
     os.makedirs(save_dir, exist_ok=True)
     np.save(os.path.join(save_dir, "bev_label_map_200.npy"), bev_small)
 
@@ -97,9 +97,9 @@ def show_bev(bev, title="BEV", class_id=CLASS_ID):
 # ───────────── Example Usage ─────────────
 if __name__ == "__main__":
     total_areas = pickle.load(open(
-        "/home/handsomeyun/BEVFormer/data/map/Town10HD_Opt/-62_20/Town10HD_Opt_filtered_total_areas.pkl", "rb"))
+        "/path/to/M2I/M2I_map/Town10HD_Opt/-62_20/Town10HD_Opt_filtered_total_areas.pkl", "rb"))
     crosswalks = pickle.load(open(
-        "/home/handsomeyun/BEVFormer/data/map/Town10HD_Opt/-62_20/Town10HD_Opt_filtered_crosswalks.pkl", "rb"))
+        "/path/to/M2I/M2I_map/Town10HD_Opt/-62_20/Town10HD_Opt_filtered_crosswalks.pkl", "rb"))
 
     center = (-62.34999847, 20.18999863)
 

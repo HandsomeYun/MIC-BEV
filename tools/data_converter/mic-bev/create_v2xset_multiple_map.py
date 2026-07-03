@@ -86,6 +86,24 @@ def apply_trans(vec,world2ego):
     t = world2ego @ vec
     return t[0:3]
 
+
+EXTREME_TEST_KEYWORDS = ("rain", "fog", "extreme", "down", "night")
+
+
+def filter_extreme_test_scenes(test_scenes, keywords=EXTREME_TEST_KEYWORDS):
+    """Select test scenes whose path/name contains extreme condition keywords."""
+    keywords = tuple(k.lower() for k in keywords)
+    extreme_scenes = [
+        scene for scene in test_scenes
+        if any(keyword in str(scene).lower() for keyword in keywords)
+    ]
+    print(
+        f"[INFO] Extreme test scenes: {len(extreme_scenes)}/{len(test_scenes)} "
+        f"matched keywords {keywords}"
+    )
+    return extreme_scenes
+
+
 def auto_split_pkls(data_roots,PKL_ROOT, VALID_CLASSES, OBJECT_CLASS_MAPPING, MAP_OUT, XODR_ROOT, MAX_SWEEPS, version, USED_PERCENT):
     scenes = []
     for root in data_roots:
@@ -118,6 +136,9 @@ def auto_split_pkls(data_roots,PKL_ROOT, VALID_CLASSES, OBJECT_CLASS_MAPPING, MA
 
     #Same test and val
     create_v2xset_infos(test_scenes, PKL_ROOT, 'test',  VALID_CLASSES, OBJECT_CLASS_MAPPING, MAP_OUT, XODR_ROOT, MAX_SWEEPS, version,  use_ego_frame=False)
+
+    extreme_test_scenes = filter_extreme_test_scenes(test_scenes)
+    create_v2xset_infos(extreme_test_scenes, PKL_ROOT, 'extreme_test',  VALID_CLASSES, OBJECT_CLASS_MAPPING, MAP_OUT, XODR_ROOT, MAX_SWEEPS, version,  use_ego_frame=False)
 
     # # Test data in global frame
     create_v2xset_infos(scenes[:n_used], PKL_ROOT, 'all',  VALID_CLASSES, OBJECT_CLASS_MAPPING, MAP_OUT, XODR_ROOT, MAX_SWEEPS, version, use_ego_frame=False)
@@ -865,6 +886,12 @@ def create_data(new_data_root_train,
                         VALID_CLASSES, OBJECT_CLASS_MAPPING,
                         MAP_OUT, XODR_ROOT, MAX_SWEEPS, VERSION,
                         use_ego_frame=False)
+
+    extreme_test_scenes = filter_extreme_test_scenes(test_scenes)
+    create_v2xset_infos(extreme_test_scenes, PKL_ROOT, 'extreme_test',
+                        VALID_CLASSES, OBJECT_CLASS_MAPPING,
+                        MAP_OUT, XODR_ROOT, MAX_SWEEPS, VERSION,
+                        use_ego_frame=False)
     
     all_scenes = train_scenes + val_scenes + test_scenes
     create_v2xset_infos(
@@ -889,145 +916,18 @@ def create_data(new_data_root_train,
 
 # ─── MAIN ──────────────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    # # ========================================================================================================================================================
-    #=================== Case 1: Create data fro all: ===================
-    # data_roots = [
-    #         "/data3/unseen_scenarios",
-    #         "/data4/multi-cam-new/1cam",
-    #         "/data4/multi-cam-new/2cam",
-    #         "/data4/multi-cam-new/3cam",
-    #         "/data4/multi-cam-new/4cam",
-    #     ]
-    # PKL_ROOT  = "/home/yun/MIC-BEV_Official/data/v2x_4cam_map_final_filtered" # where to dump PKLs 
-    # OUT_ROOT  = "/data3/multi-cam-test"  
-    # # for map
-    # XODR_ROOT = Path("/data4/multi-cam-new/CARLA_map_origional")
-    # MAP_OUT   = Path("/home/yun/MIC-BEV_Official/data/maps")
-    # version = "v1.0-trainval"
-    # MAX_SWEEPS = 2
-    # USED_PERCENT = 1 #Value between 0 and 1
-
-    # OBJECT_CLASS_MAPPING = {
-    #     # Map from original class names to standardized names
-    #     'vehicles': 'car',
-    #     'cars': 'car',
-    #     'trucks': 'truck',
-    #     'cyclists': 'bicycle',
-    #     'pedestrians': 'pedestrian',
-    # }
-
-    # # Define valid classes for the dataset
-    # VALID_CLASSES = {
-    #     'car',
-    #     'truck',
-    #     'bicycle',
-    #     'pedestrian',
-    # }
-    # create_all(OUT_ROOT, data_roots,PKL_ROOT, VALID_CLASSES, OBJECT_CLASS_MAPPING, MAP_OUT, XODR_ROOT, MAX_SWEEPS, version, USED_PERCENT)
-    
-    # ========================================================================================================================================================
-    # =================== Case 2: Append new whole data to previous: ===================
-    # new_data_roots = [
-    #         "/data4/multi-cam-new/1cam",
-    #         "/data4/multi-cam-new/2cam",
-    #         "/data4/multi-cam-new/3cam",
-    #         "/data4/multi-cam-new/4cam",
-    #     ]
-    # PREVIOUS_PKL_ROOT = "/home/yun/MIC-BEV_Official/data/v2x_4cam_map_final_filtered" #Older pkl for append
-    # TEMP_PKL_ROOT = "/home/yun/MIC-BEV_Official/data/temp_weather" #Where new generate data will be temporaryly saved
-    # NEW_PKL_ROOT = "/home/yun/MIC-BEV_Official/data/v2x_4cam_map_weather"
-    
-    # PREVIOUS_JSON_ROOT = "/data4/multi-cam-json"
-    # OUT_JSON_ROOT      = "/data4/multi-cam-json-weather"
-    # VERSION            = "v1.0-trainval"
-    # VALID_CLASSES      = { 'car', 'truck', 'bicycle', 'pedestrian' }
-    # SPLITS             = ['train', 'val', 'test', 'all']
-    # XODR_ROOT = Path("/data4/multi-cam-new/CARLA_map_origional")
-    # MAP_OUT   = Path("/home/yun/MIC-BEV_Official/data/map")
-    # MAX_SWEEPS = 2
-    # OBJECT_CLASS_MAPPING = {
-    #     # Map from original class names to standardized names
-    #     'vehicles': 'car',
-    #     'cars': 'car',
-    #     'trucks': 'truck',
-    #     'cyclists': 'bicycle',
-    #     'pedestrians': 'pedestrian',
-    # }
-    # USED_PERCENT = 1
-    
-    # append_data(new_data_roots, PREVIOUS_PKL_ROOT, PREVIOUS_JSON_ROOT,
-    #     TEMP_PKL_ROOT,
-    #     NEW_PKL_ROOT,
-    #     OUT_JSON_ROOT,
-    #     VERSION,
-    #     VALID_CLASSES,
-    #     SPLITS,
-    #     MAP_OUT,
-    #     XODR_ROOT,
-    #     MAX_SWEEPS,
-    #     OBJECT_CLASS_MAPPING,
-    #     USED_PERCENT: float = 1.0):
-    # ===========================================================================================================
-    #=============================Case 3: append splited train val to existing one ====================================================
-    # new_data_root_train = "/data3/yun/M2I_dataset/M2I_split_dataset/train"
-    # new_data_root_val = "/data3/yun/M2I_dataset/M2I_split_dataset/val"
-    # new_data_root_test = "/data3/yun/M2I_dataset/M2I_split_dataset/test"
-    # PREVIOUS_PKL_ROOT = None
-    # TEMP_PKL_ROOT = "/data3/yun/M2I_dataset/M2I_pkl" #Where new generate data will be temporaryly saved
-    # NEW_PKL_ROOT = None
-    
-    # OUT_JSON_ROOT      = "/data3/yun/M2I_dataset/M2I_json"
-    # VERSION            = "v1.0-trainval"
-    # VALID_CLASSES      = { 'car', 'truck', 'bicycle', 'pedestrian' }
-    # SPLITS             = ['train', 'val', 'test', 'all']
-    # XODR_ROOT = Path("/data3/yun/M2I_dataset/CARLA_map_origional")
-    # MAP_OUT   = Path("/data3/yun/M2I_dataset/maps")
-    # MAX_SWEEPS = 2
-    # OBJECT_CLASS_MAPPING = {
-    #     # Map from original class names to standardized names
-    #     'vehicles': 'car',
-    #     'cars': 'car',
-    #     'trucks': 'truck',
-    #     'cyclists': 'bicycle',
-    #     'pedestrians': 'pedestrian',
-    # }
-    
-    # append_data_trainval(new_data_root_train,
-    #                      new_data_root_val, 
-    #                      PREVIOUS_PKL_ROOT,
-    #                      TEMP_PKL_ROOT,
-    #                      NEW_PKL_ROOT,
-    #                      OUT_JSON_ROOT,
-    #                      VERSION,
-    #                      VALID_CLASSES,
-    #                      SPLITS,
-    #                      MAP_OUT,
-    #                      XODR_ROOT,
-    #                      MAX_SWEEPS,
-    #                      OBJECT_CLASS_MAPPING)
-    
-    #=========Append unseen scenarios to all scenarios=========
-    # prev_pkl = Path("/home/yun/MIC-BEV_Official/data/v2x_4cam_map_weather/v2xset_infos_temporal_all.pkl")
-    # new_pkl  = Path("/home/yun/MIC-BEV_Official/data/unseen_scenarios/v2xset_infos_temporal_all.pkl")
-    # out_pkl  = Path("/home/yun/MIC-BEV_Official/data/all_scenarios/v2xset_infos_temporal_all.pkl")
-
-    # data_prev = mmcv.load(str(prev_pkl)) if prev_pkl.exists() else {'infos': []}
-    # data_new  = mmcv.load(str(new_pkl))
-    # data_prev['infos'].extend(data_new['infos'])
-    # data_prev['metadata'] = data_new.get('metadata', data_prev.get('metadata', {}))
-    # mmcv.dump(data_prev, str(out_pkl))
     #=======================Create split dataset=======================
-    new_data_root_train = "/data3/yun/M2I_dataset/M2I_split_dataset/train"
-    new_data_root_val = "/data3/yun/M2I_dataset/M2I_split_dataset/val"
-    new_data_root_test = "/data3/yun/M2I_dataset/M2I_split_dataset/test"
-    PKL_ROOT = "/data3/yun/M2I_dataset/M2I_pkl" #Where new generate data will be temporaryly saved
+    new_data_root_train = "/path/to/M2I/M2I_split_dataset/train"
+    new_data_root_val = "/path/to/M2I/M2I_split_dataset/val"
+    new_data_root_test = "/path/to/M2I/M2I_split_dataset/test"
+    PKL_ROOT = "/path/to/M2I/M2I_pkl" #Where new generate data will be temporaryly saved
     
-    OUT_JSON_ROOT      = "/data3/yun/M2I_dataset/M2I_json"
+    OUT_JSON_ROOT      = "/path/to/M2I/M2I_json"
     VERSION            = "v1.0-trainval"
     VALID_CLASSES      = { 'car', 'truck', 'bicycle', 'pedestrian' }
     SPLITS             = ['train', 'val', 'test', 'all']
-    XODR_ROOT = Path("/data3/yun/M2I_dataset/CARLA_map_origional")
-    MAP_OUT   = Path("/data3/yun/M2I_dataset/maps")
+    XODR_ROOT = Path("/path/to/M2I/M2I_map")
+    MAP_OUT   = Path("/path/to/M2I/M2I_maps")
     MAX_SWEEPS = 2
     OBJECT_CLASS_MAPPING = {
         # Map from original class names to standardized names

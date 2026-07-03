@@ -2,7 +2,6 @@ import cv2
 import numpy as np
 import torch
 from mmdet.datasets.builder import PIPELINES
-import os
 
 @PIPELINES.register_module()
 class GetBEVObjLabel:
@@ -16,8 +15,16 @@ class GetBEVObjLabel:
 
     def __call__(self, results):
         # pull out boxes & labels
-        gt_boxes = results['gt_bboxes_3d']    # (N,7) numpy
+        gt_boxes = results['gt_bboxes_3d']    # LiDARInstance3DBoxes or (N, 7+) array
         gt_labels = results['gt_labels_3d']   # (N,)   numpy or memoryview
+        if hasattr(gt_boxes, 'tensor'):
+            gt_boxes = gt_boxes.tensor.detach().cpu().numpy()
+        else:
+            gt_boxes = np.asarray(gt_boxes)
+        if isinstance(gt_labels, torch.Tensor):
+            gt_labels = gt_labels.detach().cpu().numpy()
+        else:
+            gt_labels = np.asarray(gt_labels)
 
         # init mask to 0 (background class)
         mask = np.zeros((self.bev_h, self.bev_w), dtype=np.uint8)

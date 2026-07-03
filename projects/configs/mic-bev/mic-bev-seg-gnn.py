@@ -5,18 +5,12 @@ _base_ = [
 plugin = True
 plugin_dir = 'projects/mmdet3d_plugin/'
 
+total_epochs = 10
+samples_per_gpu=2
 # -----------------------------------------------------------------------------
 point_cloud_range = [-51.2, -51.2, -7.0, 51.2, 51.2, 1.0]
 post_center_range=[-61.2, -61.2, -10.0, 61.2, 61.2, 10.0]
 voxel_size = [0.2, 0.2, 8]
-
-# dx = point_cloud_range[3] - point_cloud_range[0]  # 800
-# dy = point_cloud_range[4] - point_cloud_range[1]  # 200
-# grid_size_x = math.ceil(dx / voxel_size[0])  # 2000
-# grid_size_y = math.ceil(dy / voxel_size[1])  # 500
-# grid_size   = [grid_size_x, grid_size_y, 1]
-# bev_w_ = grid_size_x // bev_stride  # 500
-# bev_h_ = grid_size_y // bev_stride  # 125
 
 class_names = [
     'car', 'bicycle', 'truck', 'pedestrian'
@@ -25,6 +19,7 @@ num_classes=len(class_names)
 max_cam = 4
 #========MAP=======
 with_seg=True #Whether to predict map
+with_map_seg=True
 # BEV‐SEMANTIC MAP CLASSES 
 sem_seg_classes = [
     'background', 'driving', 'sidewalk', 'crosswalk',
@@ -38,15 +33,15 @@ file_client_args = dict(backend='disk')
 dataset_type = 'M2IDataset'
 
 # # Set dataset roots before running
-data_root = '/path/to/M2I_split_dataset'
-pkl_root = '/path/to/M2I_pkl'
+data_root = '/path/to/M2I_data/M2I_split_dataset'
+pkl_root = '/path/to/M2I/M2I_pkl'
 # for absolute path remapping. If you move the dataset to a different location, you need to change this.
 path_prefix_replace = [('/oldpathpredix/', '/newpathpredix/')] 
 
-ann_file_train=pkl_root + "/v2xset_infos_temporal_train.pkl"
+ann_file_train=pkl_root + "/v2xset_infos_temporal_train_no_empty.pkl"
 ann_file_val=pkl_root + "/v2xset_infos_temporal_val.pkl"
 ann_file_test=pkl_root + "/v2xset_infos_temporal_test.pkl"
-total_epochs = 5
+# ann_file_test=pkl_root + "/v2xset_infos_temporal_extreme_test.pkl"
 
 eval_cfg = {
     "dist_ths": [0.5, 1.0, 2.0, 4.0],
@@ -78,6 +73,7 @@ _num_levels_ = 4
 bev_h_ = 200
 bev_w_ = 200
 queue_length = 1 # each sequence contains `queue_length` frames.
+grid_size = [512, 512, 1]
 
 model = dict(
     type='MICBEV',
@@ -105,6 +101,7 @@ model = dict(
     pts_bbox_head=dict(
         type='MICBEVHead',
         with_seg=with_seg, 
+        with_map_seg=with_map_seg,
         with_gat=with_gat,
         num_cams=max_cam,
         bev_h=bev_h_,
@@ -204,7 +201,7 @@ model = dict(
         loss_iou=dict(type='GIoULoss', loss_weight=0.0)),
     # model training and testing settings
     train_cfg=dict(pts=dict(
-        grid_size=[512, 512, 1],
+        grid_size=grid_size,
         voxel_size=voxel_size,
         point_cloud_range=point_cloud_range,
         out_size_factor=4,
@@ -221,7 +218,8 @@ train_pipeline = [
         type='LoadBEVSegFromFile',
         file_client_args=dict(backend='disk')
     ),
-    dict(type='RandomMaskMultiView', mask_prob = 0.25, blur_kernel_size = 11, blur_sigma=(3.0, 10.0), deterministic=False),
+    dict(type='RandomMaskMultiView', mask_prob = 0.25, blur_sigma=11.0, blur_kernel_size_range=(11, 61), mask_ratio=0.5, blur_ratio=0.5, deterministic=False),
+    dict(type='RandomCalibrationPerturbation', perturb_prob=0.25, rot_noise_deg=(0.0, 2.0), trans_noise_m=(0.0, 0.2), rot_prob=0.5, trans_prob=0.5),
     dict(type='PhotoMetricDistortionMultiViewImage'),
     dict(type='LoadAnnotations3D', with_bbox_3d=True, with_label_3d=True, with_attr_label=False),
     dict(type='ObjectRangeFilter', point_cloud_range=point_cloud_range),
@@ -239,7 +237,7 @@ test_pipeline = [
         type='LoadBEVSegFromFile',
         file_client_args=dict(backend='disk')
     ),
-    dict(type = 'RandomMaskMultiView', mask_prob = 1, blur_kernel_size = 11, blur_sigma=(10.0, 10.0), deterministic=True), #Tested for robust, uncomment for normal
+    dict(type='RandomMaskMultiView', mask_prob=1, blur_sigma=(10, 10.0), blur_kernel_size_range=(11, 11), mask_ratio=0.5, blur_ratio=0.5, deterministic=True),
     dict(type='NormalizeMultiviewImage', **img_norm_cfg),
     dict(type='PadMultiViewImage', size_divisor=32),
     dict(
@@ -258,7 +256,7 @@ test_pipeline = [
 
 
 data = dict(
-    samples_per_gpu=2,
+    samples_per_gpu= samples_per_gpu,
     workers_per_gpu=4,
     train=dict(
         type=dataset_type,
@@ -334,5 +332,5 @@ log_config = dict(
         dict(type='TextLoggerHook'),
         dict(type='TensorboardLoggerHook')
     ])
-checkpoint_config = dict(interval=1, max_keep_ckpts=3,  
+checkpoint_config = dict(interval=1, max_keep_ckpts=2,  
                          by_epoch=True)

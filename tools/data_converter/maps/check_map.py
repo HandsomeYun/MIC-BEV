@@ -102,9 +102,9 @@ if __name__ == '__main__':
     # instead of parsing argv, just bake in your values:
     import argparse
     args = argparse.Namespace(
-        pkl   = "/home/handsomeyun/BEVFormer/data/v2x_all_4cam_map/v2xset_infos_temporal_train.pkl",
+        pkl   = "/path/to/M2I/M2I_pkl/v2xset_infos_temporal_train.pkl",
         index = 0,
-        out   = "/home/handsomeyun/BEVFormer/data_dumping"
+        out   = "/path/to/M2I/M2I_dumping"
     )
     main(args)
 

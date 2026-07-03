@@ -7,5 +7,5 @@ from .datasets.pipelines import (
   NormalizeMultiviewImage,  CustomCollect3D)
 from .models.utils import *
 from .models.opt.adamw import AdamW2
-from .bevformer import *
+from .micbev import *
 from .dd3d import *

@@ -2,7 +2,7 @@ import os
 import numpy as np
 
 # Root directory where your maps are stored
-root_dir = '/home/yun/MIC-BEV_Official/data/map'
+root_dir = '/path/to/M2I/M2I_map'
 
 # Traverse all subdirectories
 for dirpath, dirnames, filenames in os.walk(root_dir):

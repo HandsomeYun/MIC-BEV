@@ -1,3 +1,5 @@
+import argparse
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -9,13 +11,27 @@ from nuscenes.nuscenes import NuScenes
 from nuscenes.utils.data_classes import Box
 from pyquaternion import Quaternion
 
-# ←── EDIT THIS TO YOUR LOCAL NUSCENES “dataroot” ─────────────
-DATAROOT = "/data2/mcbev-testdata"  
-VERSION  = "v1.0-trainval"  # or “v1.0-test” if you’re using test split
-# ←────────────────────────────────────────────────────────────
 
-# The exact sample token you posted:
-SAMPLE_TOKEN = "fourway_town10_v2xset_inf_test_c_c_day_s11_-1_000031"
+def parse_args():
+    parser = argparse.ArgumentParser(
+        description='Plot GT cuboids vs. predicted centers for one sample.')
+    parser.add_argument(
+        '--dataroot', required=True,
+        help='Path to your local nuScenes-format dataroot.')
+    parser.add_argument(
+        '--version', default='v1.0-trainval',
+        help='Dataset version, e.g. v1.0-trainval or v1.0-test.')
+    parser.add_argument(
+        '--sample-token',
+        default='fourway_town10_v2xset_inf_test_c_c_day_s11_-1_000031',
+        help='Sample token to visualize.')
+    return parser.parse_args()
+
+
+args = parse_args()
+DATAROOT = args.dataroot
+VERSION = args.version
+SAMPLE_TOKEN = args.sample_token
 
 # Load NuScenes
 nusc = NuScenes(version=VERSION, dataroot=DATAROOT, verbose=False)

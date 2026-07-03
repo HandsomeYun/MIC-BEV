@@ -257,4 +257,3 @@ dependencies:
       - yapf==0.31.0
       - yarl==1.15.2
       - zipp==3.20.2
-prefix: /home/cav/anaconda3/envs/open-mmlab

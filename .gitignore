@@ -3,10 +3,11 @@
 *.pt
 *.pkl
 ckpts/
-
-# Large data analysis files
-tools/analysis_tools/data_analysis/*.csv
-tools/analysis_tools/data_analysis/*.json
+test/
+data_analysis/
+results/
+data_dumping/
+vis_debug_fast/
 
 # Test results
 test/*/Mon_*
@@ -20,6 +21,9 @@ scenario_*_output/visualizations/
 visualizations/
 
 RoScenes/
+
+# Externally-cloned dependency (see README installation steps)
+mmdetection3d/
 
 # Python cache
 __pycache__/

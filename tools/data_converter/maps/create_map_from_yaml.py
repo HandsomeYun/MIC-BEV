@@ -98,11 +98,11 @@ def create_bev_from_yaml(data_protocol: Path,
 
 
 if __name__ == "__main__":
-    data_protocol = Path("/data4/multi-cam-new/3cam/"
+    data_protocol = Path("/path/to/M2I/M2I_split_dataset/3cam/"
                           "town07_intersection1_3cam_t_c_day_s47/"
                           "data_protocol.yaml")
-    xodr_root  = Path("/data4/multi-cam-new/CARLA_map")
-    out_root   = Path("/home/yun/MIC-BEV_Official/data/my_maps")
+    xodr_root  = Path("/path/to/M2I/M2I_map")
+    out_root   = Path("/path/to/M2I/M2I_map")
 
     npy_path = create_bev_from_yaml(data_protocol, xodr_root, out_root)
     print("Saved BEV map to:", npy_path)

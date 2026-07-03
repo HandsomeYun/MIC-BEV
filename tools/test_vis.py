@@ -3,8 +3,6 @@ import argparse
 import json
 import mmcv
 import os
-import subprocess
-import threading
 import torch
 import warnings
 from mmcv import Config, DictAction
@@ -26,133 +24,15 @@ from torch.utils.data import Subset
 import numpy as np
 import cv2
 
+# Register visualization-enabled dataset variants for this entry point only.
+import projects.mmdet3d_plugin.datasets.m2i_dataset_vis  # noqa: F401
+import projects.mmdet3d_plugin.datasets.roscenes_dataset_vis  # noqa: F401
+
 
 def count_trainable_and_total_params(model):
     total = sum(p.numel() for p in model.parameters())
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     return total, trainable
-
-
-def resolve_physical_device_idx(torch_device_idx):
-    if torch_device_idx < 0:
-        return -1
-    visible_devices = os.environ.get('CUDA_VISIBLE_DEVICES')
-    if not visible_devices:
-        return torch_device_idx
-    visible_device_ids = [
-        value.strip() for value in visible_devices.split(',') if value.strip()
-    ]
-    if torch_device_idx >= len(visible_device_ids):
-        return torch_device_idx
-    try:
-        return int(visible_device_ids[torch_device_idx])
-    except ValueError:
-        return torch_device_idx
-
-
-def get_process_gpu_memory_gb():
-    if not torch.cuda.is_available():
-        return 0.0
-    try:
-        output = subprocess.check_output(
-            [
-                'nvidia-smi',
-                '--query-compute-apps=pid,used_memory',
-                '--format=csv,noheader,nounits',
-            ],
-            encoding='utf-8',
-            stderr=subprocess.DEVNULL,
-            timeout=2,
-        )
-    except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired):
-        return float('nan')
-
-    current_pid = os.getpid()
-    used_mb = 0.0
-    for line in output.strip().splitlines():
-        parts = [part.strip() for part in line.split(',')]
-        if len(parts) != 2:
-            continue
-        try:
-            pid = int(parts[0])
-            memory_mb = float(parts[1])
-        except ValueError:
-            continue
-        if pid == current_pid:
-            used_mb += memory_mb
-    return used_mb / 1024.0
-
-
-def get_device_gpu_memory_gb(physical_device_idx):
-    if not torch.cuda.is_available() or physical_device_idx < 0:
-        return 0.0
-    try:
-        output = subprocess.check_output(
-            [
-                'nvidia-smi',
-                '--query-gpu=index,memory.used',
-                '--format=csv,noheader,nounits',
-            ],
-            encoding='utf-8',
-            stderr=subprocess.DEVNULL,
-            timeout=2,
-        )
-    except (subprocess.SubprocessError, FileNotFoundError, subprocess.TimeoutExpired):
-        return float('nan')
-
-    for line in output.strip().splitlines():
-        parts = [part.strip() for part in line.split(',')]
-        if len(parts) != 2:
-            continue
-        try:
-            gpu_idx = int(parts[0])
-            memory_mb = float(parts[1])
-        except ValueError:
-            continue
-        if gpu_idx == physical_device_idx:
-            return memory_mb / 1024.0
-    return float('nan')
-
-
-class GpuMemoryMonitor:
-    def __init__(self, physical_device_idx, interval_seconds=0.1):
-        self.physical_device_idx = physical_device_idx
-        self.interval_seconds = interval_seconds
-        self.peak_process_gb = get_process_gpu_memory_gb()
-        self.peak_device_used_gb = get_device_gpu_memory_gb(physical_device_idx)
-        self._stop_event = threading.Event()
-        self._thread = threading.Thread(target=self._poll, daemon=True)
-
-    def start(self):
-        self._thread.start()
-
-    def stop(self):
-        self._stop_event.set()
-        self._thread.join(timeout=3)
-        self._record(
-            get_process_gpu_memory_gb(),
-            get_device_gpu_memory_gb(self.physical_device_idx),
-        )
-
-    def _poll(self):
-        while not self._stop_event.wait(self.interval_seconds):
-            self._record(
-                get_process_gpu_memory_gb(),
-                get_device_gpu_memory_gb(self.physical_device_idx),
-            )
-
-    def _record_peak(self, attr_name, memory_gb):
-        if memory_gb != memory_gb:
-            return
-        peak_gb = getattr(self, attr_name)
-        if peak_gb != peak_gb:
-            setattr(self, attr_name, memory_gb)
-        else:
-            setattr(self, attr_name, max(peak_gb, memory_gb))
-
-    def _record(self, process_memory_gb, device_memory_gb):
-        self._record_peak('peak_process_gb', process_memory_gb)
-        self._record_peak('peak_device_used_gb', device_memory_gb)
 
 
 def parse_args():
@@ -375,7 +255,28 @@ def main():
     if args.seed is not None:
         set_random_seed(args.seed, deterministic=args.deterministic)
         
+    test_pipeline = cfg.data.test.get('pipeline', []) if isinstance(cfg.data.test, dict) else []
+    random_mask_cfg = next(
+        (step for step in test_pipeline if step.get('type') == 'RandomMaskMultiView'),
+        None)
     dataset = build_dataset(cfg.data.test)
+    if args.show_dir is not None:
+        dataset.vis_out_dir = args.show_dir
+    if random_mask_cfg is not None:
+        dataset.visual_corruption_cfg = {
+            key: random_mask_cfg[key]
+            for key in (
+                'mask_prob',
+                'blur_kernel_size',
+                'blur_kernel_size_range',
+                'blur_sigma',
+                'blur_levels',
+                'blur_level_probs',
+                'mask_ratio',
+                'blur_ratio',
+            )
+            if key in random_mask_cfg
+        }
     if args.start or args.num_samples is not None:
         if args.start < 0:
             raise ValueError('--start must be non-negative')
@@ -391,6 +292,7 @@ def main():
                 info["token"]: tuple(info["ego2global_translation"][:2])
                 for info in dataset.data_infos
             }
+        dataset.visualization_start_index = args.start
         print(f'[INFO] Running {len(dataset.data_infos)} samples '
               f'from dataset index {args.start}.')
     if args.save_map:
@@ -423,6 +325,14 @@ def main():
     if fp16_cfg is not None:
         wrap_fp16_model(model)
     checkpoint = load_checkpoint(model, args.checkpoint, map_location='cpu')
+    dump_camera_weights = False
+    model.dump_camera_weights = dump_camera_weights
+    if hasattr(model, 'pts_bbox_head'):
+        model.pts_bbox_head.dump_camera_weights = dump_camera_weights
+    if dump_camera_weights and hasattr(model, 'module'):
+        model.module.dump_camera_weights = dump_camera_weights
+        if hasattr(model.module, 'pts_bbox_head'):
+            model.module.pts_bbox_head.dump_camera_weights = dump_camera_weights
     if args.fuse_conv_bn:
         model = fuse_conv_bn(model)
     # old versions did not save class info in checkpoints, this walkaround is
@@ -439,110 +349,99 @@ def main():
         model.PALETTE = dataset.PALETTE
 
     total_params, trainable_params = count_trainable_and_total_params(model)
-    torch_device_idx = torch.cuda.current_device() if torch.cuda.is_available() else -1
-    physical_device_idx = resolve_physical_device_idx(torch_device_idx)
     if torch.cuda.is_available():
         torch.cuda.reset_peak_memory_stats()
     if torch.cuda.is_available():
         torch.cuda.synchronize()
-    gpu_memory_monitor = (
-        GpuMemoryMonitor(physical_device_idx)
-        if torch.cuda.is_available() else None)
-    if gpu_memory_monitor is not None:
-        gpu_memory_monitor.start()
     infer_start = time.time()
 
-    try:
-        if not distributed:
-            # assert False
-            model = MMDataParallel(model, device_ids=[torch_device_idx])
-            outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
-            if args.save_map:
-                #==========Save Map================
-                CLASS_ID = {
-                    "background": 0,
-                    "driving":    1,
-                    "sidewalk":   2,
-                    "crosswalk":  3,
-                    "shoulder":   4,
-                    "border":     5,
-                    "parking":    6,
-                }
+    if not distributed:
+        # assert False
+        model = MMDataParallel(model, device_ids=[0])
+        outputs = single_gpu_test(model, data_loader, args.show, args.show_dir)
+        if args.save_map:
+            #==========Save Map================
+            CLASS_ID = {
+                "background": 0,
+                "driving":    1,
+                "sidewalk":   2,
+                "crosswalk":  3,
+                "shoulder":   4,
+                "border":     5,
+                "parking":    6,
+            }
 
-                # a prettier palette indexed by class ID
-                palette = np.array([
-                    [255, 255, 255],   # 0 background – white
-                    [99,165,112],   # 1 driving   –  green
-                    [193, 182, 255],   # 2 sidewalk  – dark pink
-                    [212,154,158],   # 3 crosswalk – pink
-                    [116,60,56],   # 4 shoulder  – coral red
-                    [33,64,43],   # 5 border    – orchid purple
-                    [  0, 188, 212],   # 6 parking   – teal
-                ], dtype=np.uint8)
+            # a prettier palette indexed by class ID
+            palette = np.array([
+                [255, 255, 255],   # 0 background – white
+                [99,165,112],   # 1 driving   –  green
+                [193, 182, 255],   # 2 sidewalk  – dark pink
+                [212,154,158],   # 3 crosswalk – pink
+                [116,60,56],   # 4 shoulder  – coral red
+                [33,64,43],   # 5 border    – orchid purple
+                [  0, 188, 212],   # 6 parking   – teal
+            ], dtype=np.uint8)
+                    
+             # create separate folders
+            os.makedirs('./seg_preds/gt',   exist_ok=True)
+            os.makedirs('./seg_preds/pred', exist_ok=True)
+            try:
+                indices = dataset.indices
+                base_dataset = dataset.dataset
+            except AttributeError:
+                indices = list(range(len(dataset)))
+                base_dataset = dataset
 
-                 # create separate folders
-                os.makedirs('./seg_preds/gt',   exist_ok=True)
-                os.makedirs('./seg_preds/pred', exist_ok=True)
-                try:
-                    indices = dataset.indices
-                    base_dataset = dataset.dataset
-                except AttributeError:
-                    indices = list(range(len(dataset)))
-                    base_dataset = dataset
+            for local_idx, out in enumerate(outputs):
+                tok = f"{local_idx:03d}"
 
-                for local_idx, out in enumerate(outputs):
-                    tok = f"{local_idx:03d}"
+                # prediction map + legend
+                pred = out['semantic_map']  # H×W numpy array
+                color_pred = palette[pred]
+                # ground-truth map + legend
+                orig_idx = indices[local_idx]
+                info = base_dataset.data_infos[orig_idx]
+                gt = np.load(info['map_path'])
+                color_gt = palette[gt]
 
-                    # prediction map + legend
-                    pred = out['semantic_map']  # H×W numpy array
-                    color_pred = palette[pred]
-                    # ground-truth map + legend
-                    orig_idx = indices[local_idx]
-                    info = base_dataset.data_infos[orig_idx]
-                    gt = np.load(info['map_path'])
-                    color_gt = palette[gt]
+                # build legend panel below
+                legend_h = 30 * len(CLASS_ID)
+                legend = np.full((legend_h, color_gt.shape[1], 3), 50, dtype=np.uint8)
+                y = 25
+                font       = cv2.FONT_HERSHEY_SIMPLEX
+                font_scale = 0.7
+                thickness  = 1
+                for cls_name, cls_id in CLASS_ID.items():
+                    color = tuple(int(c) for c in palette[cls_id].tolist())
+                    cv2.rectangle(legend, (10, y-20), (30, y), color, -1)
+                    cv2.putText(legend, f"{cls_name} ({cls_id})", (40, y),
+                                font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
+                    y += 30
 
-                    # build legend panel below
-                    legend_h = 30 * len(CLASS_ID)
-                    legend = np.full((legend_h, color_gt.shape[1], 3), 50, dtype=np.uint8)
-                    y = 25
-                    font       = cv2.FONT_HERSHEY_SIMPLEX
-                    font_scale = 0.7
-                    thickness  = 1
-                    for cls_name, cls_id in CLASS_ID.items():
-                        color = tuple(int(c) for c in palette[cls_id].tolist())
-                        cv2.rectangle(legend, (10, y-20), (30, y), color, -1)
-                        cv2.putText(legend, f"{cls_name} ({cls_id})", (40, y),
-                                    font, font_scale, (255, 255, 255), thickness, cv2.LINE_AA)
-                        y += 30
+                # stitch and save prediction
+                canvas_pred = np.vstack([color_pred, legend])
+                out_pred = cv2.resize(canvas_pred,
+                                    (canvas_pred.shape[1]*2, canvas_pred.shape[0]*2),
+                                    interpolation=cv2.INTER_NEAREST)
+                cv2.imwrite(f'./seg_preds/pred/{tok}.png', out_pred)
 
-                    # stitch and save prediction
-                    canvas_pred = np.vstack([color_pred, legend])
-                    out_pred = cv2.resize(canvas_pred,
-                                        (canvas_pred.shape[1]*2, canvas_pred.shape[0]*2),
-                                        interpolation=cv2.INTER_NEAREST)
-                    cv2.imwrite(f'./seg_preds/pred/{tok}.png', out_pred)
+                # stitch and save ground truth
+                canvas_gt = np.vstack([color_gt, legend])
+                out_gt = cv2.resize(canvas_gt,
+                                    (canvas_gt.shape[1]*2, canvas_gt.shape[0]*2),
+                                    interpolation=cv2.INTER_NEAREST)
+                cv2.imwrite(f'./seg_preds/gt/{tok}.png', out_gt)
+            #================================
+    else:
+        model = MMDistributedDataParallel(
+            model.cuda(),
+            device_ids=[torch.cuda.current_device()],
+            broadcast_buffers=False)
+        outputs = custom_multi_gpu_test(model, data_loader, args.tmpdir,
+                                        args.gpu_collect)
 
-                    # stitch and save ground truth
-                    canvas_gt = np.vstack([color_gt, legend])
-                    out_gt = cv2.resize(canvas_gt,
-                                        (canvas_gt.shape[1]*2, canvas_gt.shape[0]*2),
-                                        interpolation=cv2.INTER_NEAREST)
-                    cv2.imwrite(f'./seg_preds/gt/{tok}.png', out_gt)
-                #================================
-        else:
-            model = MMDistributedDataParallel(
-                model.cuda(),
-                device_ids=[torch.cuda.current_device()],
-                broadcast_buffers=False)
-            outputs = custom_multi_gpu_test(model, data_loader, args.tmpdir,
-                                            args.gpu_collect)
-
-        if torch.cuda.is_available():
-            torch.cuda.synchronize()
-    finally:
-        if gpu_memory_monitor is not None:
-            gpu_memory_monitor.stop()
+    if torch.cuda.is_available():
+        torch.cuda.synchronize()
     infer_time = time.time() - infer_start
 
     rank, _ = get_dist_info()
@@ -550,35 +449,13 @@ def main():
         num_outputs = len(outputs)
         fps = num_outputs / infer_time if infer_time > 0 else float('inf')
         latency_ms = infer_time * 1000.0 / num_outputs if num_outputs else float('inf')
-        peak_allocated_gb = (
+        peak_mem_gb = (
             torch.cuda.max_memory_allocated() / (1024 ** 3)
             if torch.cuda.is_available() else 0.0)
-        peak_reserved_gb = (
-            torch.cuda.max_memory_reserved() / (1024 ** 3)
-            if torch.cuda.is_available() else 0.0)
-        peak_process_mem_gb = (
-            gpu_memory_monitor.peak_process_gb
-            if gpu_memory_monitor is not None else 0.0)
-        peak_device_used_gb = (
-            gpu_memory_monitor.peak_device_used_gb
-            if gpu_memory_monitor is not None else 0.0)
         print('[INFO] Runtime summary:')
         print(f'[INFO]   Params: {total_params / 1e6:.2f} M '
               f'(trainable {trainable_params / 1e6:.2f} M)')
-        if torch.cuda.is_available():
-            print(f'[INFO]   Device: cuda:{torch_device_idx} '
-                  f'({torch.cuda.get_device_name(torch_device_idx)}), '
-                  f'physical GPU {physical_device_idx}, '
-                  f'CUDA_VISIBLE_DEVICES='
-                  f'{os.environ.get("CUDA_VISIBLE_DEVICES", "")}')
-        print(f'[INFO]   Peak PyTorch allocated memory: '
-              f'{peak_allocated_gb:.2f} GB')
-        print(f'[INFO]   Peak PyTorch reserved memory: '
-              f'{peak_reserved_gb:.2f} GB')
-        print(f'[INFO]   Peak process GPU memory: '
-              f'{peak_process_mem_gb:.2f} GB')
-        print(f'[INFO]   Peak total device memory used: '
-              f'{peak_device_used_gb:.2f} GB')
+        print(f'[INFO]   Peak CUDA memory: {peak_mem_gb:.2f} GB')
         print(f'[INFO]   Latency: {latency_ms:.2f} ms/sample')
         print(f'[INFO] Inference time: {infer_time:.2f}s '
               f'for {num_outputs} samples ({fps:.2f} FPS)')
@@ -604,10 +481,8 @@ def main():
                 eval_kwargs.pop(key, None)
             eval_kwargs.update(dict(metric=args.eval, **kwargs))
 
-            print(f"DEBUG: About to call dataset.evaluate with {len(outputs)} outputs")
-            # print(dataset.evaluate(outputs, **eval_kwargs))
             eval_dict = dataset.evaluate(outputs, **eval_kwargs)
-            print(f"DEBUG: Evaluation results: {eval_dict}")
+            print(eval_dict)
 
 if __name__ == '__main__':
     main()

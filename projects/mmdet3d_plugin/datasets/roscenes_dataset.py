@@ -18,29 +18,16 @@ from __future__ import annotations
 import json
 import math
 import os
-import shutil
-import cv2
 import numpy as np
 from mmdet3d.core.bbox import LiDARInstance3DBoxes
 from mmdet3d.datasets.custom_3d import Custom3DDataset
 from mmdet.datasets import DATASETS
-from shapely.geometry import Polygon
-import matplotlib.pyplot as plt
 
 from roscenes.data import Clip, Frame, Scene, ConcatScene
 from roscenes.data.metadata import Split
 from roscenes.evaluation.detection import MultiView3DEvaluator, ThresholdMetric, DetectionEvaluationConfig
 from roscenes.evaluation.detection import Prediction
-from roscenes.transform import xyzwlhq2kitti, kitti2xyzwlhq, kitti2corners, xyzwlhq2bevbox
-
-
-COLOR_PALETTE = [
-  [0, 0, 0],       # 0 → "other"      → black
-  [0, 0, 255],     # 1 → "truck"      → red (in OpenCV BGR format)
-  [255, 0, 0],     # 2 → "bus"        → blue
-  [0, 255, 0],     # 3 → "van"        → green
-  [0, 255, 255],   # 4 → "car"        → yellow
-]
+from roscenes.transform import xyzwlhq2kitti, kitti2xyzwlhq, kitti2corners
 
 
 @DATASETS.register_module(force=True)
@@ -118,10 +105,30 @@ class RoScenesDataset(Custom3DDataset):
                  box_type_3d='LiDAR',
                  filter_empty_gt=True,
                  use_valid_flag=False,
-                 test_mode=False):
+                 test_mode=False,
+                 eval_start=0,
+                 eval_num_samples=None):
         super().__init__(data_root, ann_file, pipeline, classes, modality, box_type_3d, filter_empty_gt, test_mode)
+        if eval_num_samples is not None:
+            self._slice_data_infos(eval_start, eval_num_samples)
         self.seq_split_num = 1
         self._set_sequence_group_flag()
+
+    def _slice_data_infos(self, start, num_samples):
+        if start < 0:
+            raise ValueError(f'eval_start must be non-negative, got {start}.')
+        if num_samples <= 0:
+            raise ValueError(
+                f'eval_num_samples must be positive, got {num_samples}.')
+
+        end = start + num_samples
+        if hasattr(self.data_infos, '_indexing'):
+            indexing = getattr(self.data_infos, '_indexing')
+            setattr(self.data_infos, '_indexing', indexing[start:end])
+        else:
+            self.data_infos = self.data_infos[start:end]
+        print(f'[INFO] Using fixed RoScenes eval subset: '
+              f'{len(self.data_infos)} samples from dataset index {start}.')
 
     def _set_sequence_group_flag(self):
         """
@@ -199,13 +206,19 @@ class RoScenesDataset(Custom3DDataset):
 
         input_dict = dict(
             sample_idx=index,
+            frame_id=frame.token,
             scene_token=frame.parent.token,
             timestamp=frame.timeStamp / 1e6)
 
         clip: Clip = frame.parent
 
         # NOTE: Copy it to avoid inplace manipulation on raw data --- This causes a messd up.
-        intrinsics = [c.intrinsic.copy() for c in clip.cameras.values()]
+        intrinsics = []
+        for camera in clip.cameras.values():
+            intrinsic = np.eye(4, dtype=np.float32)
+            raw_intrinsic = np.asarray(camera.intrinsic, dtype=np.float32)
+            intrinsic[:raw_intrinsic.shape[0], :raw_intrinsic.shape[1]] = raw_intrinsic
+            intrinsics.append(intrinsic)
         extrinsics = [c.extrinsic.copy() for c in clip.cameras.values()]
         world2image = [c.world2image.copy() for c in clip.cameras.values()]
         input_dict.update(dict(
@@ -237,7 +250,8 @@ class RoScenesDataset(Custom3DDataset):
                  result_names=['pts_bbox'],
                  show=True,
                  out_dir="results",
-                 pipeline=None):
+                 pipeline=None,
+                 score_thr=0.32):
         """Evaluation in nuScenes protocol.
 
         Args:
@@ -264,175 +278,38 @@ class RoScenesDataset(Custom3DDataset):
         else:
             metadata = self.data_infos.metadata
 
-        visFolder = "/data3/yun/visualization-roscenes"
-        os.makedirs(visFolder, exist_ok=True)
         previousClip = None
         predictionList = list()
         clips = list()
-        
-        # BEV parameters (meters and pixels)
-        xlim     = (-400, 400)
-        ylim     = (-100, 100)
-        meters_per_px = 0.2  # e.g. 1 px = 0.2 m
-        W = int((xlim[1] - xlim[0]) / meters_per_px)
-        H = int((ylim[1] - ylim[0]) / meters_per_px)
-        bev_size = (W, H)
 
-        def world2bev(pts2d):
-            pix = []
-            for box in pts2d:
-                coords = []
-                for x, y in box:
-                    # uniform‐scale mapping:
-                    px = (x - xlim[0]) / meters_per_px
-                    py = (ylim[1] - y)       / meters_per_px
-                    coords.append([int(px), int(py)])
-                pix.append(np.array(coords, dtype=np.int32))
-            return pix
-
-        def draw(bev_img, pix, color):
-            for box in pix:
-                cv2.polylines(bev_img, [box], True, color, 2)
-            return bev_img
-        
         for i, res in enumerate(results):
             frame = self.data_infos[i]
-            view  = frame
             boxes_3d  = res['pts_bbox']['boxes_3d']
             scores_3d = res['pts_bbox']['scores_3d']      # torch.Tensor, shape [N]
             labels_3d = res['pts_bbox']['labels_3d']      # torch.Tensor, shape [N]
 
-            # now filter low‐confidence
-            keep = scores_3d >= 0.35
-            boxes_3d  = boxes_3d[keep]
+            keep = scores_3d >= score_thr
+            boxes_3d = boxes_3d[keep]
             scores_3d = scores_3d[keep]
             labels_3d = labels_3d[keep]
 
-            # Flip yaw in the original boxes_3d tensor to ensure consistency across all operations
-            boxes_3d.tensor[:, 6] = -boxes_3d.tensor[:, 6]
-            # Normalize yaw to (-pi, pi]
-            boxes_3d.tensor[:, 6] = (boxes_3d.tensor[:, 6] + math.pi) % (2 * math.pi) - math.pi
-            
-            # [N, 7+2]
-            xyzwlhr, velocities = boxes_3d.tensor[:, :7].detach().clone(), boxes_3d.tensor[:, 7:9].detach().clone()
+            if len(boxes_3d) == 0:
+                predictionList.append(Prediction(
+                    timeStamp=frame.timeStamp,
+                    boxes3D=np.empty((0, 10), dtype=np.float32),
+                    velocities=np.empty((0, 2), dtype=np.float32),
+                    labels=np.empty((0,), dtype=np.int64),
+                    scores=np.empty((0,), dtype=np.float32),
+                    token=frame.token
+                ))
+                continue
 
-            xyzwlhq = kitti2xyzwlhq(xyzwlhr.cpu().numpy().copy())
-            print(f"\n processing [Frame {i}")
-            #=========coordinate tranform for bev========
-            pred_corners = boxes_3d.corners.detach().cpu().numpy()
-            all_footprints = []
-            for corners in pred_corners:               # corners: (8,3)
-                # 1) select bottom corners
-                # corners: (8,3)
-                z_vals = corners[:, 2]
-                # get indices of the 4 smallest z’s
-                bottom_idxs = np.argsort(z_vals)[:4]
-                pts = corners[bottom_idxs, :2]
-
-                # 2) sort them around centroid
-                center = pts.mean(axis=0)                  # (x_c, y_c)
-                # compute angle of each point relative to center
-                angles = np.arctan2(pts[:,1] - center[1],
-                                    pts[:,0] - center[0])
-                order = np.argsort(angles)                 # ascending angle → CCW order
-                sorted_pts = pts[order]
-
-                all_footprints.append(sorted_pts)
-
-            pred_footprints = np.stack(all_footprints, 0)  # (N,4,2)
-            # GT corners from Scene
-            gt_kitti   = xyzwlhq2kitti(frame.boxes3D)
-            gt_corners = kitti2corners(gt_kitti)
-            gt_footprints = gt_corners[:, :4, :2]
-            
-            if i % 60 == 59:
-            # if True:
-                #==================Plot BEV===========================
-                # 1) bev_all: both GT and pred
-                bev_all = np.zeros((H, W, 4), dtype=np.uint8)
-                
-                # these both are shape (N,4,2)—loop through them
-                # gt_pixs   = world2bev(gt_footprints)
-                pred_pixs = world2bev(pred_footprints)
-                for poly, label in zip(pred_pixs, labels_3d):
-                    color = COLOR_PALETTE[label]  # RGB triplet
-                    contour = poly.reshape(-1,1,2).astype(np.int32)
-                    cv2.polylines(
-                        bev_all,
-                        [contour],
-                        True,
-                        tuple(color) + (255,),   # add alpha if using 4‑ch image
-                        thickness=2,
-                        lineType=cv2.LINE_AA
-                    )
-
-                out_dir_i = os.path.join(visFolder, str(i))
-                os.makedirs(out_dir_i, exist_ok=True)
-                # OpenCV will honor the alpha channel when writing PNGs:
-                cv2.imwrite(os.path.join(out_dir_i, f"bev_transparent_{i:03d}.png"), bev_all)
-                print(f"Saved BEV image here", {os.path.join(visFolder, str(i))})
-                # #================Plot projection to image ====================
-                # Use the same filtered boxes for image projection as used for BEV
-                boxes2vis   = boxes_3d
-                orig_scores = scores_3d
-                orig_labels = labels_3d
-                # projectedResults = view.parent.projection(kitti2corners(boxes_3d.tensor.detach().clone().cpu().numpy()[..., :7]))
-                projectedResults = view.parent.projection(boxes2vis.corners.detach().cpu().numpy())
-                # gt_projected = view.parent.projection(gt_corners)
-                for k, (imagePath, (boxes, vis)) in enumerate(zip(view.images.values(), projectedResults)):
-                    img = cv2.imread(imagePath)
-                    cleanImg = img.copy()
-                    
-                    # #=======Plot gt=====================
-                    # gt_boxes2d, gt_vis2d = gt_projected[k]
-                    # for gt_box, flag in zip(gt_boxes2d, gt_vis2d):
-                    #     if not flag:
-                    #         continue
-                    #     # gt_box.shape == (8,2)
-                    #     top_pts    = gt_box[0:4, :2].astype(np.int32)
-                    #     bottom_pts = gt_box[4:8, :2].astype(np.int32)
-                    #     # draw top face
-                    #     cv2.polylines(img, [top_pts],    True, (0,255,0), 2, cv2.LINE_AA)
-                    #     # draw bottom face (footprint)
-                    #     cv2.polylines(img, [bottom_pts], True, (0,255,0), 2, cv2.LINE_AA)
-                    #     # draw vertical edges
-                    #     for idx in range(4):
-                    #         p0 = tuple(top_pts[idx])
-                    #         p1 = tuple(bottom_pts[idx])
-                    #         cv2.line(img, p0, p1, (0,255,0), 2, cv2.LINE_AA)
-                    #=======Plot prediction==============
-                    scores2vis = orig_scores
-                    labels2vis = orig_labels
-
-                    # then sort
-                    sortIds    = np.argsort(-np.mean(boxes[..., -1], -1))
-                    boxes = boxes[sortIds, ..., :2]
-                    scores2vis = scores2vis[sortIds]
-                    labels2vis = labels2vis[sortIds]
-                    vis        = vis[sortIds]
-
-                    # [4] in xy format
-                    for box3d, score, label in zip(boxes[vis], scores2vis[vis], labels2vis[vis]):
-                        # crop the clean object region
-                        # paste to current image
-                        # then draw line
-                        objectPoly = Polygon(box3d)
-                        objectPoly = np.array(objectPoly.convex_hull.exterior.coords, dtype=np.int32)
-                        mask = np.zeros_like(cleanImg[..., 0])
-                        cv2.drawContours(mask, [objectPoly], -1, (255, 255, 255), -1, cv2.LINE_AA)
-                        # print(img.shape, cleanImg.shape, mask.shape)
-                        fg = cv2.bitwise_and(cleanImg, cleanImg, mask=mask)
-                        bg = (img * (1 - mask[..., None] / 255.)).astype(np.uint8)
-                        img = fg + bg
-                        cv2.polylines(img, [box3d[:4].astype(int)], True, COLOR_PALETTE[label], 3, cv2.LINE_AA)
-                        cv2.polylines(img, [box3d[4:].astype(int)], True, COLOR_PALETTE[label], 3, cv2.LINE_AA)
-                        cv2.polylines(img, [box3d[[0, 1, 5, 4]].astype(int)], True, COLOR_PALETTE[label], 3, cv2.LINE_AA)
-                        cv2.polylines(img, [box3d[[2, 3, 7, 6]].astype(int)], True, COLOR_PALETTE[label], 3, cv2.LINE_AA)
-
-                    os.makedirs(os.path.join(visFolder, str(i)), exist_ok=True)
-                    cv2.imwrite(os.path.join(visFolder, str(i), f"{view.token}_{k}.jpg"), img)
-                    print(f"Saved image here", {os.path.join(visFolder, str(i), f"{view.token}_{k}.jpg"),})
-              # #================End Plot projection to image ====================
+            velocities = boxes_3d.tensor[:, 7:9].detach().clone()
+            # Convert the corrected KITTI/LiDAR boxes directly to RoScenes
+            # xyzwlhq. corners2xyzwlhq assumes RoScenes corner ordering, while
+            # mmdet3d's boxes_3d.corners uses a different order and can corrupt
+            # the evaluator quaternion even when the plotted corners look right.
+            xyzwlhq = kitti2xyzwlhq(boxes_3d.tensor[:, :7].detach().cpu().numpy())
             prediction = Prediction(
                             timeStamp=frame.timeStamp,
                             boxes3D=xyzwlhq,
@@ -443,8 +320,16 @@ class RoScenesDataset(Custom3DDataset):
                         )
             predictionList.append(prediction)
 
-        groundtruth = self.data_infos
+        # Scene.__iter__ walks all clips and ignores sliced _indexing. Build an
+        # explicit frame list so quick eval uses the same frames as inference.
+        groundtruth = [self.data_infos[i] for i in range(len(self.data_infos))]
+        if predictionList:
+            print('[INFO] Eval correspondence: '
+                  f'{len(groundtruth)} GT frames, {len(predictionList)} predictions, '
+                  f'first token {groundtruth[0].token} == {predictionList[0].token}, '
+                  f'last token {groundtruth[-1].token} == {predictionList[-1].token}')
 
+        eval_range = [-400., -100., 0., 400., 100., 6.]
         evaluator = MultiView3DEvaluator(DetectionEvaluationConfig(
             self.CLASSES,
             [0.5, 1., 2., 4.],
@@ -452,7 +337,7 @@ class RoScenesDataset(Custom3DDataset):
             ThresholdMetric.CenterDistance,
             500,
             0.0,
-            [-400., -40., 0., 400., 40., 6.],
+            eval_range,
             # ["TranslationError", "ScaleError", "OrientationError"]
             [
                 "PrecisionRecall",      # rank‑list metric for PR curves

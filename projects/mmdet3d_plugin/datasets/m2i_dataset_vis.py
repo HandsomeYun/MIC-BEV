@@ -20,11 +20,6 @@ def eval_map(preds, gts, num_classes, ignore_index=255):
     total_union = np.zeros(num_classes, dtype=np.float64)
 
     for pred, gt in zip(preds, gts):
-        if pred.shape != gt.shape:
-            gt = cv2.resize(
-                gt,
-                (pred.shape[1], pred.shape[0]),
-                interpolation=cv2.INTER_NEAREST)
         valid = gt != ignore_index
         for c in range(num_classes):
             p = (pred == c) & valid
@@ -37,7 +32,7 @@ def eval_map(preds, gts, num_classes, ignore_index=255):
     return mean_iou, class_iou
 
 
-@DATASETS.register_module()
+@DATASETS.register_module(force=True)
 class M2IDataset(NuScenesDataset):
     r"""NuScenes Dataset.
 
@@ -294,7 +289,7 @@ class M2IDataset(NuScenesDataset):
             result_files = {'pts_bbox': result_files}
 
         return result_files, tmp_dir
-    
+
     def evaluate(self,
                 results,
                 metric='bbox',
@@ -433,13 +428,7 @@ class M2IDataset(NuScenesDataset):
             ignore_index=255)
         # 4) pixel‐accuracy
         pix_acc = np.mean([
-            (pred == (
-                cv2.resize(
-                    gt,
-                    (pred.shape[1], pred.shape[0]),
-                    interpolation=cv2.INTER_NEAREST)
-                if pred.shape != gt.shape else gt
-            )).sum() / pred.size
+            (pred == gt).sum() / gt.size
             for pred, gt in zip(map_preds, map_gts)
         ])
         

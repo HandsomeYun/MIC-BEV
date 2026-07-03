@@ -38,7 +38,7 @@ def main():
     )
     parser.add_argument(
         "--out-dir",
-        default="/home/yun/MIC-BEV_Official/data_dumping/map",
+        default="/path/to/M2I/M2I_dumping/map",
         help="Directory to save the PNG (default: %(default)s)"
     )
     args = parser.parse_args()

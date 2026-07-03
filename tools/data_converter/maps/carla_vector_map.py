@@ -62,7 +62,7 @@ def visualize_carla_map_waypoint():
     base_name = os.path.basename(town_name)
     print(base_name)
 
-    save_file_name = f"/data2/mcbev-testdata/CARLA_map/{base_name}.xodr"
+    save_file_name = f"/path/to/M2I/M2I_map/CARLA_map/{base_name}.xodr"
 
     # save the map to a file
     with open(save_file_name, "w") as f:
