@@ -5,13 +5,9 @@
 [![Paper](https://img.shields.io/badge/Paper-Link-blue.svg)](https://arxiv.org/abs/2510.24688)
 [![Dataset](https://img.shields.io/badge/Dataset-M2I-green.svg)](https://huggingface.co/datasets/handsomeYun/M2I)
 
-<br>
-
 <video src="https://github.com/user-attachments/assets/6783612d-22d0-4de0-a484-9d462d79f2e7" autoplay loop muted playsinline width="100%"></video>
 
 <video src="https://github.com/user-attachments/assets/76a1a119-0a8c-4421-b34c-2d835e7b9c12" autoplay loop muted playsinline width="100%"></video>
-
-<br>
 
 <img src="mic-bev.png" width="100%" alt="MIC-BEV Overview">
 
@@ -21,7 +17,7 @@
 
 ## 🌐 Overview
 
-**MIC-BEV** (Multi-Infrastructure Camera Bird's-Eye-View Transformer) is a Transformer-based 3D perception framework designed for **infrastructure-mounted multi-camera systems**. It introduces a *camera–BEV relation-aware attention* mechanism that models the geometric relations between each camera and BEV cell via a **graph neural network (GNN)**, enabling adaptive multi-view fusion under diverse and heterogeneous camera configurations.
+**MIC-BEV** (Multi-Infrastructure Camera Bird's-Eye-View Transformer) is a Transformer-based 3D perception framework designed for **infrastructure-mounted multi-camera systems**. It introduces a **camera-BEV relation-aware attention** mechanism that models the geometric relations between each camera and BEV cell via a **graph neural network (GNN)**, enabling adaptive multi-view fusion under diverse and heterogeneous camera configurations.
 
 MIC-BEV jointly performs **3D object detection** and **BEV segmentation**, and is designed to stay robust across:
 
@@ -359,8 +355,7 @@ Many thanks to these excellent open-source projects, which MIC-BEV builds upon:
 
 ## License
 
-This project is released under the terms in [`LICENSE.txt`](LICENSE.txt) (UCLA Mobility Lab
-Academic Software License, for academic/nonprofit research use). Note that some third-party
+This project is released under the terms in [`LICENSE.txt`](LICENSE.txt). Note that some third-party
 components included or required by this project (e.g., MMDetection3D and the RoScenes toolkit)
 are distributed under their own licenses; please review and comply with those terms as well.
 
