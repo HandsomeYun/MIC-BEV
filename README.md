@@ -7,9 +7,9 @@
 
 <br>
 
-https://github.com/user-attachments/assets/6783612d-22d0-4de0-a484-9d462d79f2e7
+<video src="https://github.com/user-attachments/assets/6783612d-22d0-4de0-a484-9d462d79f2e7" autoplay loop muted playsinline width="100%"></video>
 
-https://github.com/user-attachments/assets/76a1a119-0a8c-4421-b34c-2d835e7b9c12
+<video src="https://github.com/user-attachments/assets/76a1a119-0a8c-4421-b34c-2d835e7b9c12" autoplay loop muted playsinline width="100%"></video>
 
 <br>
 
