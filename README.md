@@ -5,6 +5,13 @@
 [![Paper](https://img.shields.io/badge/Paper-Link-blue.svg)](https://arxiv.org/abs/2510.24688)
 [![Dataset](https://img.shields.io/badge/Dataset-M2I-green.svg)](https://huggingface.co/datasets/handsomeYun/M2I)
 
+<br>
+
+https://github.com/user-attachments/assets/6783612d-22d0-4de0-a484-9d462d79f2e7
+https://github.com/user-attachments/assets/76a1a119-0a8c-4421-b34c-2d835e7b9c12
+
+<br>
+
 <img src="mic-bev.png" width="85%" alt="MIC-BEV Overview">
 
 </div>
