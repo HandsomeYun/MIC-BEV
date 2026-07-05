@@ -13,7 +13,7 @@
 
 <br>
 
-<img src="mic-bev.png" width="85%" alt="MIC-BEV Overview">
+<img src="mic-bev.png" width="100%" alt="MIC-BEV Overview">
 
 </div>
 
