@@ -5,9 +5,9 @@
 [![Paper](https://img.shields.io/badge/Paper-Link-blue.svg)](https://arxiv.org/abs/2510.24688)
 [![Dataset](https://img.shields.io/badge/Dataset-M2I-green.svg)](https://huggingface.co/datasets/handsomeYun/M2I)
 
-<video src="https://raw.githubusercontent.com/HandsomeYun/MIC-BEV/main/video/MICBEV_on_M2I.mp4" controls muted playsinline width="100%"></video>
+https://github.com/user-attachments/assets/8659948c-e5d3-4a28-9614-886ef014a8ad
 
-<video src="https://raw.githubusercontent.com/HandsomeYun/MIC-BEV/main/video/MICBEV_on_RoScenes.mp4" controls muted playsinline width="100%"></video>
+https://github.com/user-attachments/assets/19cc1f53-b64e-4e49-a5d7-a7c7aaff383b
 
 <img src="mic-bev.png" width="100%" alt="MIC-BEV Overview">
 
